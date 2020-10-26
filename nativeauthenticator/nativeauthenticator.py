@@ -9,8 +9,10 @@ from sqlalchemy import inspect
 from tornado import gen
 from traitlets import Bool, Integer, Unicode
 
-from .handlers import (AuthorizationHandler, ChangeAuthorizationHandler,
-                       ChangePasswordHandler, LoginHandler, SignUpHandler)
+from .handlers import (
+    AuthorizationHandler, ChangeAuthorizationHandler, ChangePasswordHandler,
+    ChangePasswordAdminHandler, LoginHandler, SignUpHandler,
+)
 from .orm import UserInfo
 
 
@@ -40,6 +42,11 @@ class NativeAuthenticator(Authenticator):
         default=600,
         help=("Configures the number of seconds a user has to wait "
               "after being blocked. Default is 600.")
+    )
+    enable_signup = Bool(
+        config=True,
+        default_value=True,
+        help=("Allows every user to registry a new account")
     )
     open_signup = Bool(
         config=True,
@@ -128,7 +135,7 @@ class NativeAuthenticator(Authenticator):
         username = self.normalize_username(data['username'])
         password = data['password']
 
-        user = UserInfo.find(self.db, username)
+        user = self.get_user(username)
         if not user:
             return
 
@@ -167,14 +174,23 @@ class NativeAuthenticator(Authenticator):
 
         return all(checks)
 
-    def get_or_create_user(self, username, pw, **kwargs):
+    def get_user(self, username):
+        return UserInfo.find(self.db, self.normalize_username(username))
+
+    def user_exists(self, username):
+        return self.get_user(username) is not None
+
+    def create_user(self, username, pw, **kwargs):
         username = self.normalize_username(username)
-        user = UserInfo.find(self.db, username)
-        if user:
-            return user
+
+        if self.user_exists(username):
+            return
 
         if not self.is_password_strong(pw) or \
            not self.validate_username(username):
+            return
+
+        if not self.enable_signup:
             return
 
         encoded_pw = bcrypt.hashpw(pw.encode(), bcrypt.gensalt())
@@ -193,7 +209,7 @@ class NativeAuthenticator(Authenticator):
         return user_info
 
     def change_password(self, username, new_password):
-        user = UserInfo.find(self.db, username)
+        user = self.get_user(username)
         user.password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt())
         self.db.commit()
 
@@ -210,11 +226,12 @@ class NativeAuthenticator(Authenticator):
             (r'/authorize', AuthorizationHandler),
             (r'/authorize/([^/]*)', ChangeAuthorizationHandler),
             (r'/change-password', ChangePasswordHandler),
+            (r'/change-password/([^/]+)', ChangePasswordAdminHandler),
         ]
         return native_handlers
 
     def delete_user(self, user):
-        user_info = UserInfo.find(self.db, user.name)
+        user_info = self.get_user(user.name)
         if user_info is not None:
             self.db.delete(user_info)
             self.db.commit()
@@ -236,7 +253,7 @@ class NativeAuthenticator(Authenticator):
         with dbm.open(self.firstuse_db_path, 'c', 0o600) as db:
             for user in db.keys():
                 password = db[user].decode()
-                new_user = self.get_or_create_user(user.decode(), password)
+                new_user = self.create_user(user.decode(), password)
                 if not new_user:
                     error = '''User {} was not created. Check password
                                restrictions or username problems before trying
