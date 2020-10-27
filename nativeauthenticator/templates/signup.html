@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     </button>
                 </span>
             </div>
+            <label for="confirm_pwd">Confirm password:</label>
+            <input type="password" class="form-control" name="confirm_pw" id="confirm_pwd" tabindex="2" required />
             <p></p>
             {% if two_factor_auth %}
             <label for="2fa">Add two factor authentication:</label>

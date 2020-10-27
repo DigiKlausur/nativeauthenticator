@@ -64,8 +64,9 @@ class SignUpHandler(LocalBase):
                                "have spaces or commas and is not too "
                                "common.").format(pw_len)
                 else:
-                    message = ("Something went wrong. Be sure your password "
-                               "doesn't have spaces or commas and is not too "
+                    message = ("Something went wrong. Be sure you type "
+                               "the same password and it doesn't have "
+                               "spaces or commas and is not too "
                                "common.")
 
             # If user creation went through & open-signup is enabled, success.
@@ -83,6 +84,7 @@ class SignUpHandler(LocalBase):
         user_info = {
             'username': self.get_body_argument('username', strip=False),
             'pw': self.get_body_argument('pw', strip=False),
+            'confirm_pw': self.get_body_argument('confirm_pw', strip=False),
             'email': self.get_body_argument('email', '', strip=False),
             'has_2fa': bool(self.get_body_argument('2fa', '', strip=False)),
         }

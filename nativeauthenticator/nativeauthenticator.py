@@ -180,7 +180,7 @@ class NativeAuthenticator(Authenticator):
     def user_exists(self, username):
         return self.get_user(username) is not None
 
-    def create_user(self, username, pw, **kwargs):
+    def create_user(self, username, pw, confirm_pw=None, **kwargs):
         username = self.normalize_username(username)
 
         if self.user_exists(username):
@@ -189,6 +189,10 @@ class NativeAuthenticator(Authenticator):
         if not self.is_password_strong(pw) or \
            not self.validate_username(username):
             return
+        
+        if confirm_pw:
+            if not pw == confirm_pw:
+                return
 
         if not self.enable_signup:
             return
@@ -196,7 +200,7 @@ class NativeAuthenticator(Authenticator):
         encoded_pw = bcrypt.hashpw(pw.encode(), bcrypt.gensalt())
         infos = {'username': username, 'password': encoded_pw}
         infos.update(kwargs)
-        if username in self.admin_users or self.open_signup:
+        if username in self.admin_users or self.open_signup or self.whitelist:
             infos.update({'is_authorized': True})
 
         try:
