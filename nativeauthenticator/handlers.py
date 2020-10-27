@@ -185,6 +185,14 @@ class ChangePasswordAdminHandler(LocalBase):
         self.finish(html)
 
 
+class DeleteUserHandler(LocalBase):
+    """Delete user and re-render authorization-area"""
+    @admin_only
+    async def get(self, user_name):
+        self.authenticator.delete_native_auth_user(user_name)
+        self.redirect(self.hub.base_url + 'authorize')
+
+
 class LoginHandler(LoginHandler, LocalBase):
 
     def _render(self, login_error=None, username=None):
