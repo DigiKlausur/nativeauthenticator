@@ -11,7 +11,7 @@ from traitlets import Bool, Integer, Unicode
 
 from .handlers import (
     AuthorizationHandler, ChangeAuthorizationHandler, ChangePasswordHandler,
-    ChangePasswordAdminHandler, LoginHandler, SignUpHandler,
+    ChangePasswordAdminHandler, DeleteUserHandler, LoginHandler, SignUpHandler,
 )
 from .orm import UserInfo
 
@@ -200,7 +200,7 @@ class NativeAuthenticator(Authenticator):
         encoded_pw = bcrypt.hashpw(pw.encode(), bcrypt.gensalt())
         infos = {'username': username, 'password': encoded_pw}
         infos.update(kwargs)
-        if username in self.admin_users or self.open_signup or self.whitelist:
+        if username in self.admin_users or username in self.whitelist or self.open_signup:
             infos.update({'is_authorized': True})
 
         try:
@@ -231,6 +231,7 @@ class NativeAuthenticator(Authenticator):
             (r'/authorize/([^/]*)', ChangeAuthorizationHandler),
             (r'/change-password', ChangePasswordHandler),
             (r'/change-password/([^/]+)', ChangePasswordAdminHandler),
+            (r'/delete/([^/]*)', DeleteUserHandler),
         ]
         return native_handlers
 
@@ -240,6 +241,12 @@ class NativeAuthenticator(Authenticator):
             self.db.delete(user_info)
             self.db.commit()
         return super().delete_user(user)
+
+    def delete_native_auth_user(self, user_name):
+        user_info = self.get_user(user_name)
+        if user_info is not None:
+            self.db.delete(user_info)
+            self.db.commit()
 
     def delete_dbm_db(self):
         db_path = Path(self.firstuse_db_path)
